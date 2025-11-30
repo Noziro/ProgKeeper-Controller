@@ -1,0 +1,51 @@
+services:
+  controller:
+    build: .
+    container_name: progkeeper_controller
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    depends_on:
+      - database
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      DB_ROOT_PASSWORD: root_password_change_me
+      DB_DATABASE: progkeeper
+      DB_USER: admin
+      DB_PASSWORD: change_me
+    volumes:
+      - pk_data:/mnt/data # for persistent image uploads and more
+    networks:
+      - progkeeper_internal
+
+  database:
+    image: mariadb:11.4
+    container_name: progkeeper_database
+    restart: unless-stopped
+    environment:
+      TZ: UTC
+      MARIADB_ROOT_PASSWORD: root_password_change_me
+      MARIADB_DATABASE: progkeeper
+      MARIADB_USER: admin
+      MARIADB_PASSWORD: change_me
+    ports:
+      - "3306:3306" # for local / dev access, remove if not needed
+    volumes:
+      - pk_db:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    networks:
+      - progkeeper_internal
+
+volumes:
+  pk_db:
+  pk_data:
+
+networks:
+  progkeeper_internal:
+    driver: bridge
