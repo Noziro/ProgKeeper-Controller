@@ -1,20 +1,23 @@
 services:
   controller:
     build: .
+    command: ["uvicorn", "progkeeper.api:app", "--host", "0.0.0.0", "--port", "8000", "--reload"] # overwrite default command for live file reloads
     container_name: progkeeper_controller
     restart: unless-stopped
     ports:
       - "8002:8000"
     depends_on:
-      - database
+      database:
+        condition: service_healthy
     environment:
-      DB_HOST: db
-      DB_PORT: "3306"
+      DB_HOST: database
+      DB_PORT: 3306
       DB_ROOT_PASSWORD: root_password_change_me
       DB_DATABASE: progkeeper
       DB_USER: admin
       DB_PASSWORD: change_me
     volumes:
+      - ./progkeeper:/app/progkeeper # for live code editing
       - pk_data:/mnt/data # for persistent image uploads and more
     networks:
       - progkeeper_internal
@@ -34,7 +37,7 @@ services:
     volumes:
       - pk_db:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      test: ["CMD-SHELL", "mariadb-admin ping --host=localhost --user=root --password=$$MARIADB_ROOT_PASSWORD"]
       interval: 10s
       timeout: 5s
       retries: 5
