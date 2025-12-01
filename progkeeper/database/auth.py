@@ -1,8 +1,63 @@
 import bcrypt # password hashing
 import secrets # ID generation
 import json
+import base64 # for header auth
 from progkeeper.database.common import DatabaseSession
 from datetime import datetime, timezone
+
+def now_utc() -> int:
+	""" Returns the current UTC time as a Unix timestamp. """
+	return int(datetime.now(timezone.utc).timestamp())
+
+def validate_credentials(headers) -> bool:
+	""" Check if the request has valid authentication credentials.
+	These can be in the form of a session ID or a username/password
+	combination. Example headers:
+	Authorization: Bearer session_id
+	Authorization: Basic base64(username:password) 
+	"""
+
+	print(headers)
+	
+	if 'Authorization' not in headers:
+		return False
+	
+	credentials = headers['Authorization'].strip()
+
+	if credentials.startswith("Bearer "):
+		session_id = credentials[len("Bearer "):].strip()
+		if len(session_id) == 0:
+			return False
+		with DatabaseSession() as db:
+			db.cursor.execute(
+				"SELECT id FROM sessions WHERE id = ? AND expiry > ?",
+				[session_id, now_utc()]
+			)
+			return db.cursor.fetchone() is not None
+		
+	elif credentials.startswith("Basic "):
+		encoded = credentials[len("Basic "):].strip()
+		if len(encoded) == 0:
+			return False
+		decoded_bytes:bytes = base64.b64decode(encoded)
+		decoded_str:str = decoded_bytes.decode('utf-8')
+		if ':' not in decoded_str:
+			return False
+		username, password = decoded_str.split(':', 1)
+		username = username.strip().lower()
+		with DatabaseSession() as db:
+			db.cursor.execute(
+				"SELECT password FROM users WHERE username = ?",
+				[username]
+			)
+			row = db.cursor.fetchone()
+			if row is None:
+				return False
+			hashed_password = row[0]
+			if verify_password(password, hashed_password):
+				return True
+
+	return False
 
 def generate_session_id() -> str:
 	""" Generate a new session identifier. """
@@ -19,7 +74,6 @@ def session_id_is_in_use(cursor, session_id: str) -> bool:
 		[session_id]
 	)
 	return cursor.fetchone() is not None
-		
 
 def hash_password(password: str) -> str:
 	""" Hash the password for secure storage. """
@@ -72,8 +126,7 @@ def create_user(username: str, password: str, nickname: str | None = None) -> in
 def create_session(username: str, password: str, ip_address: str) -> str:
 	""" Verify user credentials and return user ID if valid, otherwise 0. """
 	username = username.strip().lower()
-	now_utc:int = int(datetime.now(timezone.utc).timestamp())
-	expiry_utc:int = now_utc + (60 * 60 * 24 * 14)  # Sessions last 14 days without renewal
+	expiry_utc:int = now_utc() + (60 * 60 * 24 * 14)  # Sessions last 14 days without renewal
 	ip_string:str = json.dumps([ip_address])
 	with DatabaseSession() as db:
 		db.cursor.execute(
@@ -95,3 +148,16 @@ def create_session(username: str, password: str, ip_address: str) -> str:
 		)
 		db.connection.commit()
 		return session_id
+	
+
+def delete_session(session_id: str) -> bool|None:
+	""" Delete a session from the database. """
+	with DatabaseSession() as db:
+		db.cursor.execute(
+			"DELETE FROM sessions WHERE id = ?",
+			[session_id]
+		)
+		db.connection.commit()
+		if db.cursor.rowcount > 0:
+			return True
+	return None
