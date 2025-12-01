@@ -1,12 +1,20 @@
 FROM python:3.14-slim
 
+# file prep
 WORKDIR /app
-
-# install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
 COPY progkeeper progkeeper
+COPY schema.sql .
+COPY requirements.txt .
+
+# prep APT
+RUN apt-get update -y
+
+# install Mariadb dependencies
+# needed for pip to not error
+RUN apt-get install -y libmariadb-dev build-essential
+
+# install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Expose FastAPI port
 EXPOSE 8000

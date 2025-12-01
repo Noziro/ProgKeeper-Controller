@@ -1,6 +1,8 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
+from progkeeper.database.common import DatabaseSession
+
 app = FastAPI(
 	title="ProgKeeper API",
 	version="0.1.0",
