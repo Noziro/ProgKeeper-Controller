@@ -1,7 +1,7 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 
-from progkeeper.database.auth import create_user
+from progkeeper.database.auth import create_user as auth_create_user, create_session as auth_create_session
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -49,9 +49,13 @@ def logout_all():
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/session/create")
-def login(user: UserLogin):
+def login(user: UserLogin, request: Request):
 	""" Begin a new user session (login). """
-	return APIResult(False, "Not implemented yet.")
+	try:
+		session_id = auth_create_session(user.username, user.password, request.client.host)
+		return APIResult(True, "Created session successfully.", {"session_id": session_id})
+	except ValueError as e:
+		return APIResult(False, f"Failed to create session: {e}")
 
 
 
@@ -76,7 +80,7 @@ def delete_user(user_id: int):
 def register(user: UserRegister):
 	""" Register a new user. """
 	try:
-		user_id = create_user(user.username, user.password, user.nickname)
+		user_id = auth_create_user(user.username, user.password, user.nickname)
 		return APIResult(True, "Created user successfully.", {"user_id": user_id})
 	except ValueError as e:
 		return APIResult(False, f"Failed to create user: {e}")

@@ -99,7 +99,7 @@ CREATE TABLE `jobs` (
 
 
 CREATE TABLE `sessions` (
-  `id` varchar(32) NOT NULL PRIMARY KEY,
+  `id` varchar(64) NOT NULL PRIMARY KEY,
   `started` timestamp NOT NULL DEFAULT current_timestamp(),
   `expiry` int(11) NOT NULL DEFAULT 0,
   `user_id` int(11) NOT NULL,
