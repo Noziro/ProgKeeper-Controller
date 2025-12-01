@@ -37,6 +37,37 @@ class UserLogin(BaseModel):
 class UserRegister(UserLogin):
 	nickname: str | None = None
 
+class Status(Enum):
+	current = 'current'
+	completed = 'completed'
+	paused = 'paused'
+	dropped = 'dropped'
+	planned = 'planned'
+
+class MediaItem(BaseModel):
+	name: str
+	collection_id: int
+	status: Status = Status.planned
+	score: int | None = None
+	image: str | None = None
+	description: str | None = None
+	comments: str | None = None	
+	count_total: int = 0
+	count_progress: int = 0
+	count_rewatched: int = 0
+	user_started_at: str | None = None
+	user_finished_at: str | None = None
+	media_started_at: str | None = None
+	media_finished_at: str | None = None
+	link_anilist: str | None = None
+	link_myanimelist: str | None = None
+	link_imdb: str | None = None
+	link_tmdb: str | None = None
+	adult: bool = False
+	favourite: bool = False
+	private: bool = False
+	deleted: bool = False
+
 
 
 # Meta information
