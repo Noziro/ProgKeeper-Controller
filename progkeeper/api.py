@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from progkeeper.database.common import DatabaseSession
+from progkeeper.database.auth import create_user
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -10,13 +10,14 @@ app = FastAPI(
 )
 
 class APIResult:
-	def __init__(self, ok:bool, message:str):
+	def __init__(self, ok:bool, message:str, data = None):
 		if not isinstance(ok, bool):
 			raise ValueError("APIResult.ok must be a boolean value")
 		if not isinstance(message, str):
 			raise ValueError("APIResult.message must be a string")
 		self.ok = ok
 		self.message = message
+		self.data = {} if data is None else data
 
 class UserLogin(BaseModel):
 	username: str
@@ -74,7 +75,11 @@ def delete_user(user_id: int):
 @app.post("/user/create")
 def register(user: UserRegister):
 	""" Register a new user. """
-	return APIResult(False, "Not implemented yet.")
+	try:
+		user_id = create_user(user.username, user.password, user.nickname)
+		return APIResult(True, "Created user successfully.", {"user_id": user_id})
+	except ValueError as e:
+		return APIResult(False, f"Failed to create user: {e}")
 
 @app.post("/user/import")
 def import_data():
