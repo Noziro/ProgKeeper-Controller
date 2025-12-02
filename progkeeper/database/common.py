@@ -2,11 +2,11 @@ import mariadb
 import os
 
 SQL_CREDENTIALS = {
-	"host": os.environ['DB_HOST'] or 'localhost',
-	"port": int(os.environ['DB_PORT']) or 3306,
-	"user": os.environ['DB_USER'] or 'progkeeper',
-	"pass": os.environ['DB_PASSWORD'] or 'change_me',
-	"dbname": os.environ['DB_DATABASE'] or 'progkeeper'
+	"host": os.environ['DB_HOST'] if 'DB_HOST' in os.environ else 'localhost',
+	"port": int(os.environ['DB_PORT']) if 'DB_PORT' in os.environ else 3306,
+	"user": os.environ['DB_USER'] if 'DB_USER' in os.environ else 'progkeeper',
+	"pass": os.environ['DB_PASSWORD'] if 'DB_PASSWORD' in os.environ else 'change_me',
+	"dbname": os.environ['DB_DATABASE'] if 'DB_DATABASE' in os.environ else 'progkeeper'
 }
 
 def is_database_ready(cursor) -> bool:

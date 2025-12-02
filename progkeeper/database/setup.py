@@ -4,11 +4,11 @@ from pathlib import Path
 from .common import is_database_ready
 
 SQL_ROOT_CREDENTIALS = {
-	"host": os.environ['DB_HOST'] or 'localhost',
-	"port": int(os.environ['DB_PORT']) or 3306,
+	"host": os.environ['DB_HOST'] if 'DB_HOST' in os.environ else 'localhost',
+	"port": int(os.environ['DB_PORT']) if 'DB_PORT' in os.environ else 3306,
 	"user": 'root',
-	"pass": os.environ['DB_ROOT_PASSWORD'] or 'root_password_change_me',
-	"dbname": os.environ['DB_DATABASE'] or 'progkeeper'
+	"pass": os.environ['DB_ROOT_PASSWORD'] if 'DB_ROOT_PASSWORD' in os.environ else 'root_password_change_me',
+	"dbname": os.environ['DB_DATABASE'] if 'DB_DATABASE' in os.environ else 'progkeeper'
 }
 
 def setup_database() -> bool:
