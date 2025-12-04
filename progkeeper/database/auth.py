@@ -1,7 +1,6 @@
 import bcrypt # password hashing
 import secrets # ID generation
 import json
-import base64 # for header auth
 from progkeeper.database.common import DatabaseSession
 from datetime import datetime, timezone
 
@@ -187,7 +186,7 @@ def delete_session(session_id: str) -> str:
 
 def delete_all_sessions_for_user(user_id_or_session: int|str) -> int:
 	""" Delete all sessions for a given user ID. Returns the number of deleted sessions. """
-	
+
 	if isinstance(user_id_or_session, str):
 		user_id:int = get_user_id_from_session(user_id_or_session)
 		if user_id is None:

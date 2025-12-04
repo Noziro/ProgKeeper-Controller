@@ -63,6 +63,8 @@ class MediaItem(BaseModel):
 
 
 
+# Authenticate functions and data
+
 SECURITY_SCHEME = HTTPBearer()
 
 def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(SECURITY_SCHEME)], request: Request) -> HTTPAuthorizationCredentials:
@@ -78,6 +80,25 @@ def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(S
 	auth.refresh_session(session_id, request.client.host)
 
 	return http_auth
+
+def only_allow_self_action(attempted_user_id:int, http_auth: HTTPAuthorizationCredentials) -> None:
+	""" Determines if a user is performing an action upon their own user ID.	 
+	If they are not, this function raises an HTTPException.
+	
+	Uses HTTP authentication to determine this."""
+
+	if not isinstance(http_auth, HTTPAuthorizationCredentials):
+		raise ValueError('http_auth must be an instance of HTTPAuthorizationCredentials')
+	if not isinstance(attempted_user_id, int):
+		raise ValueError('attempted_user_id must be an int')
+
+	user_id:int = auth.get_user_id_from_session(http_auth.credentials)
+
+	if user_id != attempted_user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Attempted to perform an action for another user.')
+	
+	return
+
 
 
 # Meta information
@@ -136,7 +157,16 @@ def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials,
 @app.delete("/user/delete/{user_id}")
 def delete_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete user. """
-	return APIResult("Not implemented yet.")
+	# TODO: allow admins to delete other users
+	only_allow_self_action(user_id, http_auth)
+
+	deleted_data = user.obliterate_user(user_id)
+	if deleted_data == {}:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete user. They may not exist.")
+	elif 'deleted_user_id' not in deleted_data:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete user, although some deletions succeeded.", data=deleted_data)
+	return APIResult("Deleted user successfully.", deleted_data)
+
 
 @app.post("/user/create")
 def register(user: UserRegister):
