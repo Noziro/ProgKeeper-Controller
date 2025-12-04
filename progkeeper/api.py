@@ -154,9 +154,14 @@ def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials,
 	
 	return APIResult("Not implemented yet.")
 
+# add extra confirmation step to prevent accidentally querying this endpoint
+class UserDeleteConfirmation(BaseModel):
+	obliterate_this_user: bool
+
 @app.delete("/user/delete/{user_id}")
-def delete_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
-	""" Delete user. """
+def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Permanently delete user. """
+	
 	# TODO: allow admins to delete other users
 	only_allow_self_action(user_id, http_auth)
 
