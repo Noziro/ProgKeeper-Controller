@@ -1,7 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, status, Depends
 from pydantic import BaseModel
 from typing import Annotated
-from enum import Enum
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import progkeeper.database.auth as auth
@@ -29,37 +28,6 @@ class UserLogin(BaseModel):
 
 class UserRegister(UserLogin):
 	nickname: str | None = None
-
-class Status(Enum):
-	current = 'current'
-	completed = 'completed'
-	paused = 'paused'
-	dropped = 'dropped'
-	planned = 'planned'
-
-class MediaItem(BaseModel):
-	name: str
-	collection_id: int
-	status: Status = Status.planned
-	score: int | None = None
-	image: str | None = None
-	description: str | None = None
-	comments: str | None = None	
-	count_total: int = 0
-	count_progress: int = 0
-	count_rewatched: int = 0
-	user_started_at: str | None = None
-	user_finished_at: str | None = None
-	media_started_at: str | None = None
-	media_finished_at: str | None = None
-	link_anilist: str | None = None
-	link_myanimelist: str | None = None
-	link_imdb: str | None = None
-	link_tmdb: str | None = None
-	adult: bool = False
-	favourite: bool = False
-	private: bool = False
-	deleted: bool = False
 
 
 
@@ -196,10 +164,13 @@ def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(secur
 
 # Media management
 
+import progkeeper.database.media as media
+
 @app.post("/media/create")
-def create_media(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def create_media(media_item: media.MediaItem, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
-	return APIResult("Not implemented yet.")
+	# TODO: validate user_id
+	return media.create_media_item(media_item)
 
 @app.get("/media/get/{media_id}")
 def get_media(media_id: int):
