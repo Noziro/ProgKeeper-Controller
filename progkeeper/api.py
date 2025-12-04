@@ -25,14 +25,9 @@ UNAUTHENTICATED = HTTPException(
 )
 
 class APIResult:
-	def __init__(self, ok:bool, message:str, data = None):
-		if not isinstance(ok, bool):
-			raise ValueError("APIResult.ok must be a boolean value")
-		if not isinstance(message, str):
-			raise ValueError("APIResult.message must be a string")
-		self.ok = ok
-		self.message = message
-		self.data = {} if data is None else data
+	def __init__(self, detail: str, data: dict = {}):
+		self.detail = detail
+		self.data = data
 
 class UserLogin(BaseModel):
 	username: str
@@ -94,8 +89,8 @@ def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(S
 # Meta information
 
 @app.get("/")
-def status():
-	return APIResult(True, "API is running. Visit /docs for API documentation.")
+def api_status():
+	return APIResult("API is running. Visit /docs for API documentation.")
 
 
 
@@ -106,23 +101,23 @@ def logout(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_b
 	""" Logout the current user session. """
 	deleted_id:str = auth_delete_session(http_auth.credentials)
 	if deleted_id == '':
-		return APIResult(False, "Failed to delete session. It may not exist.")
-	return APIResult(True, "Deleted session successfully.", {"deleted_session_id": deleted_id})
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete session. It may not exist.")
+	return APIResult("Deleted session successfully.", {"deleted_session_id": deleted_id})
 
 @app.get("/session/end/all")
 def logout_all(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout from all sessions belonging to this user. """
 	deleted_count:int = auth_delete_all_sessions_for_user(http_auth.credentials)
-	return APIResult(True, "Deleted all sessions for user.", {"deleted_session_count": deleted_count})
+	return APIResult("Deleted all sessions for user.", {"deleted_session_count": deleted_count})
 
 @app.post("/session/create")
 def login(user: UserLogin, request: Request):
 	""" Begin a new user session (login). """
 	try:
 		session_id = auth_create_session(user.username, user.password, request.client.host)
-		return APIResult(True, "Created session successfully.", {"session_id": session_id})
+		return APIResult("Created session successfully.", {"session_id": session_id})
 	except ValueError as e:
-		return APIResult(False, f"Failed to create session: {e}")
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create session: {e}")
 
 
 
@@ -131,37 +126,37 @@ def login(user: UserLogin, request: Request):
 @app.get("/user/get/{user_id}")
 def get_user(user_id: int):
 	""" Get info about a user. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.post("/user/update/{user_id}")
 def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update user info. """
 	
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.delete("/user/delete/{user_id}")
 def delete_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete user. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.post("/user/create")
 def register(user: UserRegister):
 	""" Register a new user. """
 	try:
 		user_id = auth_create_user(user.username, user.password, user.nickname)
-		return APIResult(True, "Created user successfully.", {"user_id": user_id})
+		return APIResult("Created user successfully.", {"user_id": user_id})
 	except ValueError as e:
-		return APIResult(False, f"Failed to create user: {e}")
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create user: {e}")
 
 @app.post("/user/import")
 def import_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.get("/user/export")
 def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 
 
@@ -170,22 +165,22 @@ def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(secur
 @app.post("/media/create")
 def create_media(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.get("/media/get/{media_id}")
 def get_media(media_id: int):
 	""" Get info about a media item. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.post("/media/update/{media_id}")
 def update_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a media item. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.delete("/media/delete/{media_id}")
 def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a media item. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 
 
@@ -194,19 +189,19 @@ def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredential
 @app.post("/collection/create")
 def create_collection(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a collection. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.get("/collection/get/{collection_id}")
 def get_collection(collection_id: int):
 	""" Get info about a collection. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.post("/collection/update/{collection_id}")
 def update_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a collection. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
 
 @app.delete("/collection/delete/{collection_id}")
 def delete_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a collection. """
-	return APIResult(False, "Not implemented yet.")
+	return APIResult("Not implemented yet.")
