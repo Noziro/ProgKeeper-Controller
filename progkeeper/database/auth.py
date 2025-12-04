@@ -9,54 +9,52 @@ def now_utc() -> int:
 	""" Returns the current UTC time as a Unix timestamp. """
 	return int(datetime.now(timezone.utc).timestamp())
 
-def validate_credentials(headers) -> bool:
-	""" Check if the request has valid authentication credentials.
-	These can be in the form of a session ID or a username/password
-	combination. Example headers:
-	Authorization: Bearer session_id
-	Authorization: Basic base64(username:password) 
-	"""
+def validate_session_id(session_id: str) -> bool:
+	""" Check if the provided session ID exists and is not expired. """
 
-	print(headers)
+	if not isinstance(session_id, str):
+		raise ValueError("Session ID must be a string.")
 	
-	if 'Authorization' not in headers:
+	if len(session_id) == 0:
 		return False
-	
-	credentials = headers['Authorization'].strip()
+	with DatabaseSession() as db:
+		db.cursor.execute(
+			"SELECT id FROM sessions WHERE id = ? AND expiry > ?",
+			[session_id, now_utc()]
+		)
+		return db.cursor.fetchone() is not None
 
-	if credentials.startswith("Bearer "):
-		session_id = credentials[len("Bearer "):].strip()
-		if len(session_id) == 0:
-			return False
-		with DatabaseSession() as db:
-			db.cursor.execute(
-				"SELECT id FROM sessions WHERE id = ? AND expiry > ?",
-				[session_id, now_utc()]
-			)
-			return db.cursor.fetchone() is not None
-		
-	elif credentials.startswith("Basic "):
-		encoded = credentials[len("Basic "):].strip()
-		if len(encoded) == 0:
-			return False
-		decoded_bytes:bytes = base64.b64decode(encoded)
-		decoded_str:str = decoded_bytes.decode('utf-8')
-		if ':' not in decoded_str:
-			return False
-		username, password = decoded_str.split(':', 1)
-		username = username.strip().lower()
-		with DatabaseSession() as db:
-			db.cursor.execute(
-				"SELECT password FROM users WHERE username = ?",
-				[username]
-			)
-			row = db.cursor.fetchone()
-			if row is None:
-				return False
-			hashed_password = row[0]
-			if verify_password(password, hashed_password):
-				return True
+	return False
 
+def refresh_session(session_id: str, user_ip: str) -> bool:
+	""" Refresh the expiry time of a session and log any new IPs used to access it. """
+	updated_expiry:int = now_utc() + (60 * 60 * 24 * 14)  # Sessions last 14 days without renewal
+	with DatabaseSession() as db:
+		db.cursor.execute(
+			"SELECT expiry, user_ip FROM sessions WHERE id = ?",
+			[session_id]
+		)
+		row = db.cursor.fetchone()
+		if row is None:
+			return False
+		current_expiry:int = row[0]
+		ip_json:str = row[1]
+		if current_expiry < now_utc():
+			return False  # Session already expired
+		ip_list:list = json.loads(ip_json)
+		if user_ip not in ip_list:
+			ip_list.append(user_ip)
+		updated_ip_json:str = json.dumps(ip_list)
+
+		db.cursor.execute(
+			"UPDATE sessions SET expiry = ?, user_ip = ? WHERE id = ?",
+			[updated_expiry, updated_ip_json, session_id]
+		)
+		print(db.cursor.statement)
+		db.connection.commit()
+		if db.cursor.rowcount > 0:
+			print(db.cursor.rowcount, db.cursor.lastrowid, db.cursor.description)
+			return True
 	return False
 
 def generate_session_id() -> str:

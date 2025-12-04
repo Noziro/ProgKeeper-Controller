@@ -1,12 +1,15 @@
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status, Depends
 from pydantic import BaseModel
+from typing import Annotated
 from enum import Enum
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 from progkeeper.database.auth import \
 	create_user as auth_create_user, \
 	create_session as auth_create_session, \
 	delete_session as auth_delete_session, \
-	validate_credentials
+	validate_session_id, \
+	refresh_session
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -70,6 +73,23 @@ class MediaItem(BaseModel):
 
 
 
+SECURITY_SCHEME = HTTPBearer()
+
+def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(SECURITY_SCHEME)], request: Request) -> HTTPAuthorizationCredentials:
+	""" Serves as a bridge between FastAPI security dependencies and functions I actually enjoy writing. """
+
+	if not isinstance(http_auth, HTTPAuthorizationCredentials):
+		raise ValueError("Invalid credentials object.")
+	
+	session_id = http_auth.credentials
+	if not validate_session_id(session_id):
+		raise UNAUTHENTICATED
+	
+	print(refresh_session(session_id, request.client.host))
+
+	return http_auth
+
+
 # Meta information
 
 @app.get("/")
@@ -81,18 +101,14 @@ def status():
 # Session management
 
 @app.get("/session/end")
-def logout(request: Request):
+def logout(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout the current user session. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	#deleted = auth_delete_session()
 	return APIResult(False, "Not implemented yet.")
 
 @app.get("/session/end/all")
 def logout_all(request: Request):
 	""" Logout from all sessions belonging to this user. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/session/create")
@@ -114,17 +130,14 @@ def get_user(user_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/user/update/{user_id}")
-def update_user(user_id: int, request: Request):
+def update_user(user_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update user info. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
+	
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/user/delete/{user_id}")
-def delete_user(user_id: int, request: Request):
+def delete_user(user_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete user. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/user/create")
@@ -137,17 +150,13 @@ def register(user: UserRegister):
 		return APIResult(False, f"Failed to create user: {e}")
 
 @app.post("/user/import")
-def import_data(request: Request):
+def import_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.get("/user/export")
-def export_data(request: Request):
+def export_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 
@@ -155,10 +164,8 @@ def export_data(request: Request):
 # Media management
 
 @app.post("/media/create")
-def create_media(request: Request):
+def create_media(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.get("/media/get/{media_id}")
@@ -167,17 +174,13 @@ def get_media(media_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/media/update/{media_id}")
-def update_media(media_id: int, request: Request):
+def update_media(media_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a media item. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/media/delete/{media_id}")
-def delete_media(media_id: int, request: Request):
+def delete_media(media_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a media item. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 
@@ -185,10 +188,8 @@ def delete_media(media_id: int, request: Request):
 # Collection management
 
 @app.post("/collection/create")
-def create_collection(request: Request):
+def create_collection(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a collection. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.get("/collection/get/{collection_id}")
@@ -197,15 +198,11 @@ def get_collection(collection_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/collection/update/{collection_id}")
-def update_collection(collection_id: int, request: Request):
+def update_collection(collection_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a collection. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/collection/delete/{collection_id}")
-def delete_collection(collection_id: int, request: Request):
+def delete_collection(collection_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a collection. """
-	if not validate_credentials(request.headers):
-		raise UNAUTHENTICATED
 	return APIResult(False, "Not implemented yet.")
