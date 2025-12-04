@@ -4,13 +4,7 @@ from typing import Annotated
 from enum import Enum
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from progkeeper.database.auth import \
-	create_user as auth_create_user, \
-	create_session as auth_create_session, \
-	delete_session as auth_delete_session, \
-	delete_all_sessions_for_user as auth_delete_all_sessions_for_user, \
-	validate_session_id, \
-	refresh_session
+import progkeeper.database.auth as auth
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -78,10 +72,10 @@ def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(S
 		raise ValueError("Invalid credentials object.")
 	
 	session_id = http_auth.credentials
-	if not validate_session_id(session_id):
+	if not auth.validate_session_id(session_id):
 		raise UNAUTHENTICATED
 	
-	refresh_session(session_id, request.client.host)
+	auth.refresh_session(session_id, request.client.host)
 
 	return http_auth
 
@@ -99,7 +93,7 @@ def api_status():
 @app.get("/session/end")
 def logout(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout the current user session. """
-	deleted_id:str = auth_delete_session(http_auth.credentials)
+	deleted_id:str = auth.delete_session(http_auth.credentials)
 	if deleted_id == '':
 		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to delete session. It may not exist.")
 	return APIResult("Deleted session successfully.", {"deleted_session_id": deleted_id})
@@ -107,14 +101,14 @@ def logout(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_b
 @app.get("/session/end/all")
 def logout_all(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout from all sessions belonging to this user. """
-	deleted_count:int = auth_delete_all_sessions_for_user(http_auth.credentials)
+	deleted_count:int = auth.delete_all_sessions_for_user(http_auth.credentials)
 	return APIResult("Deleted all sessions for user.", {"deleted_session_count": deleted_count})
 
 @app.post("/session/create")
 def login(user: UserLogin, request: Request):
 	""" Begin a new user session (login). """
 	try:
-		session_id = auth_create_session(user.username, user.password, request.client.host)
+		session_id = auth.create_session(user.username, user.password, request.client.host)
 		return APIResult("Created session successfully.", {"session_id": session_id})
 	except ValueError as e:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create session: {e}")
@@ -123,12 +117,12 @@ def login(user: UserLogin, request: Request):
 
 # User management
 
-from progkeeper.database.user import get_user_info
+import progkeeper.database.user as user
 
 @app.get("/user/get/{user_id}")
 def get_user(user_id: int):
 	""" Get info about a user. """
-	user_data:dict = get_user_info(user_id)
+	user_data:dict = user.get_user_info(user_id)
 	if user_data == {}:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 	return APIResult("Fetched user info successfully.", {"user": user_data})
@@ -148,7 +142,7 @@ def delete_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials,
 def register(user: UserRegister):
 	""" Register a new user. """
 	try:
-		user_id = auth_create_user(user.username, user.password, user.nickname)
+		user_id = auth.create_user(user.username, user.password, user.nickname)
 		return APIResult("Created user successfully.", {"user_id": user_id})
 	except ValueError as e:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create user: {e}")
