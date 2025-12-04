@@ -8,6 +8,7 @@ from progkeeper.database.auth import \
 	create_user as auth_create_user, \
 	create_session as auth_create_session, \
 	delete_session as auth_delete_session, \
+	delete_all_sessions_for_user as auth_delete_all_sessions_for_user, \
 	validate_session_id, \
 	refresh_session
 
@@ -85,7 +86,7 @@ def security_bridge(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(S
 	if not validate_session_id(session_id):
 		raise UNAUTHENTICATED
 	
-	print(refresh_session(session_id, request.client.host))
+	refresh_session(session_id, request.client.host)
 
 	return http_auth
 
@@ -101,15 +102,18 @@ def status():
 # Session management
 
 @app.get("/session/end")
-def logout(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def logout(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout the current user session. """
-	#deleted = auth_delete_session()
-	return APIResult(False, "Not implemented yet.")
+	deleted_id:str = auth_delete_session(http_auth.credentials)
+	if deleted_id == '':
+		return APIResult(False, "Failed to delete session. It may not exist.")
+	return APIResult(True, "Deleted session successfully.", {"deleted_session_id": deleted_id})
 
 @app.get("/session/end/all")
-def logout_all(request: Request):
+def logout_all(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Logout from all sessions belonging to this user. """
-	return APIResult(False, "Not implemented yet.")
+	deleted_count:int = auth_delete_all_sessions_for_user(http_auth.credentials)
+	return APIResult(True, "Deleted all sessions for user.", {"deleted_session_count": deleted_count})
 
 @app.post("/session/create")
 def login(user: UserLogin, request: Request):
@@ -130,13 +134,13 @@ def get_user(user_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/user/update/{user_id}")
-def update_user(user_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update user info. """
 	
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/user/delete/{user_id}")
-def delete_user(user_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def delete_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete user. """
 	return APIResult(False, "Not implemented yet.")
 
@@ -150,12 +154,12 @@ def register(user: UserRegister):
 		return APIResult(False, f"Failed to create user: {e}")
 
 @app.post("/user/import")
-def import_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def import_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
 	return APIResult(False, "Not implemented yet.")
 
 @app.get("/user/export")
-def export_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
 	return APIResult(False, "Not implemented yet.")
 
@@ -164,7 +168,7 @@ def export_data(credentials: Annotated[HTTPAuthorizationCredentials, Depends(sec
 # Media management
 
 @app.post("/media/create")
-def create_media(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def create_media(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
 	return APIResult(False, "Not implemented yet.")
 
@@ -174,12 +178,12 @@ def get_media(media_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/media/update/{media_id}")
-def update_media(media_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def update_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a media item. """
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/media/delete/{media_id}")
-def delete_media(media_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a media item. """
 	return APIResult(False, "Not implemented yet.")
 
@@ -188,7 +192,7 @@ def delete_media(media_id: int, credentials: Annotated[HTTPAuthorizationCredenti
 # Collection management
 
 @app.post("/collection/create")
-def create_collection(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def create_collection(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a collection. """
 	return APIResult(False, "Not implemented yet.")
 
@@ -198,11 +202,11 @@ def get_collection(collection_id: int):
 	return APIResult(False, "Not implemented yet.")
 
 @app.post("/collection/update/{collection_id}")
-def update_collection(collection_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def update_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a collection. """
 	return APIResult(False, "Not implemented yet.")
 
 @app.delete("/collection/delete/{collection_id}")
-def delete_collection(collection_id: int, credentials: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def delete_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a collection. """
 	return APIResult(False, "Not implemented yet.")

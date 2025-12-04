@@ -5,9 +5,17 @@ import base64 # for header auth
 from progkeeper.database.common import DatabaseSession
 from datetime import datetime, timezone
 
+
+
+# Utility functions
+
 def now_utc() -> int:
 	""" Returns the current UTC time as a Unix timestamp. """
 	return int(datetime.now(timezone.utc).timestamp())
+
+
+
+# Session functions
 
 def validate_session_id(session_id: str) -> bool:
 	""" Check if the provided session ID exists and is not expired. """
@@ -50,10 +58,8 @@ def refresh_session(session_id: str, user_ip: str) -> bool:
 			"UPDATE sessions SET expiry = ?, user_ip = ? WHERE id = ?",
 			[updated_expiry, updated_ip_json, session_id]
 		)
-		print(db.cursor.statement)
 		db.connection.commit()
 		if db.cursor.rowcount > 0:
-			print(db.cursor.rowcount, db.cursor.lastrowid, db.cursor.description)
 			return True
 	return False
 
@@ -73,6 +79,23 @@ def session_id_is_in_use(cursor, session_id: str) -> bool:
 	)
 	return cursor.fetchone() is not None
 
+def get_user_id_from_session(session_id: str) -> int|None:
+	""" Get the user ID associated with a session ID. Returns None if not found. """
+	with DatabaseSession() as db:
+		db.cursor.execute(
+			"SELECT user_id FROM sessions WHERE id = ?",
+			[session_id]
+		)
+		row = db.cursor.fetchone()
+		if row is None:
+			return None
+		return row[0]
+	return None
+
+
+
+# Password functions
+
 def hash_password(password: str) -> str:
 	""" Hash the password for secure storage. """
 	bytes:bytes = password.encode('utf-8')
@@ -85,6 +108,8 @@ def verify_password(plaintext_password: str, hashed_password: str) -> bool:
 	return bcrypt.checkpw(plaintext_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 
+
+# Worker functions (called directly by API endpoints)
 
 def create_user(username: str, password: str, nickname: str | None = None) -> int:
 	""" Create a new user in the database. Returns the new user's ID. """
@@ -148,7 +173,7 @@ def create_session(username: str, password: str, ip_address: str) -> str:
 		return session_id
 	
 
-def delete_session(session_id: str) -> bool|None:
+def delete_session(session_id: str) -> str:
 	""" Delete a session from the database. """
 	with DatabaseSession() as db:
 		db.cursor.execute(
@@ -157,5 +182,26 @@ def delete_session(session_id: str) -> bool|None:
 		)
 		db.connection.commit()
 		if db.cursor.rowcount > 0:
-			return True
-	return None
+			return session_id
+	return ''
+
+def delete_all_sessions_for_user(user_id_or_session: int|str) -> int:
+	""" Delete all sessions for a given user ID. Returns the number of deleted sessions. """
+	
+	if isinstance(user_id_or_session, str):
+		user_id:int = get_user_id_from_session(user_id_or_session)
+		if user_id is None:
+			return 0
+	elif isinstance(user_id_or_session, int):
+		user_id:int = user_id_or_session
+	else:
+		raise ValueError("user_id_or_session must be an integer user ID or a string session ID.")
+	
+	with DatabaseSession() as db:
+		db.cursor.execute(
+			"DELETE FROM sessions WHERE user_id = ?",
+			[user_id]
+		)
+		db.connection.commit()
+		return db.cursor.rowcount
+	return 0
