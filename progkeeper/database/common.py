@@ -30,3 +30,12 @@ class DatabaseSession:
 
 	def __exit__(self, exception_type, exception_value, traceback):
 		self.connection.close()
+
+	def get_assoc(self, query: str, params: list = []) -> list[dict]:
+		""" Execute a query and return results as a list of associative arrays (dicts). """
+		self.cursor.execute(query, params)
+		columns = [col[0] for col in self.cursor.description]
+		results = []
+		for row in self.cursor.fetchall():
+			results.append({columns[i]: row[i] for i in range(len(columns))})
+		return results
