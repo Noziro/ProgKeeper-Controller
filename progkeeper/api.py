@@ -123,10 +123,15 @@ def login(user: UserLogin, request: Request):
 
 # User management
 
+from progkeeper.database.user import get_user_info
+
 @app.get("/user/get/{user_id}")
 def get_user(user_id: int):
 	""" Get info about a user. """
-	return APIResult("Not implemented yet.")
+	user_data:dict = get_user_info(user_id)
+	if user_data == {}:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+	return APIResult("Fetched user info successfully.", {"user": user_data})
 
 @app.post("/user/update/{user_id}")
 def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

@@ -1,7 +1,7 @@
 import mariadb
 import os
 from pathlib import Path
-from .common import is_database_ready
+from progkeeper.database.common import is_database_ready
 
 SQL_ROOT_CREDENTIALS = {
 	"host": os.environ['DB_HOST'] if 'DB_HOST' in os.environ else 'localhost',
