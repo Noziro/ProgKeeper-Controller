@@ -192,9 +192,12 @@ def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredential
 # Collection management
 
 @app.post("/collection/create")
-def create_collection(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def create_collection(collection: media.Collection, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a collection. """
-	return APIResult("Not implemented yet.")
+	# Override specified user_id with the currently authenticated user
+	collection.user_id = auth.get_user_id_from_session(http_auth.credentials)
+	collection_id = media.create_collection(collection)
+	return APIResult("Created collection successfully.", {'collection_id': collection_id})
 
 @app.get("/collection/get/{collection_id}")
 def get_collection(collection_id: int):

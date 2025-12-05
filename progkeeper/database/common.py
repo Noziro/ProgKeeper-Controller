@@ -1,5 +1,6 @@
 import mariadb
 import os
+import typing
 
 SQL_CREDENTIALS = {
 	"host": os.environ['DB_HOST'] if 'DB_HOST' in os.environ else 'localhost',
@@ -39,3 +40,13 @@ class DatabaseSession:
 		for row in self.cursor.fetchall():
 			results.append({columns[i]: row[i] for i in range(len(columns))})
 		return results
+	
+	def easy_insert(self, table:str, column_values:dict[str, typing.Any]):
+		""" Wrapper for INSERT statements to reduce dev effort.
+		Just be aware this does use format strings, which in theory opens up injection attacks.
+		Be sure the *table* variable and *column_values* **keys** are only used internally! """
+		columns = [k for k in column_values.keys()]
+		values = [v for v in column_values.values()]
+		return self.cursor.execute(f"""
+			INSERT INTO {table} ({','.join(columns)}) VALUES ({','.join(['?' for c in columns])})
+		""", values)

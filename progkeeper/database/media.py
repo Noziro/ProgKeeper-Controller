@@ -2,6 +2,13 @@ from pydantic import BaseModel
 from enum import Enum
 from progkeeper.database.common import DatabaseSession
 
+class RatingSystems(Enum):
+	three_star = 3
+	five_star = 5
+	ten_point = 10
+	twenty_point = 20
+	hundred_point = 100
+
 class Status(Enum):
 	current = 'current'
 	completed = 'completed'
@@ -9,10 +16,15 @@ class Status(Enum):
 	dropped = 'dropped'
 	planned = 'planned'
 
+class MediaTypes(Enum):
+	single = 'single'
+	many = 'many'
+
 class MediaItem(BaseModel):
 	name: str
-	user_id: int
+	user_id: int | None = None
 	collection_id: int
+	type: MediaTypes
 	status: Status = Status.planned
 	score: int | None = None
 	image: str | None = None
@@ -33,11 +45,24 @@ class MediaItem(BaseModel):
 	favourite: bool = False
 	private: bool = False
 
+class Collection(BaseModel):
+	# TODO: add validation for fields - name should have length and character limits, etc
+	user_id: int | None = None
+	name: str
+	display_image: bool = True
+	display_score: bool = True
+	display_progress: bool = True
+	display_user_started: bool = True
+	display_user_finished: bool = True
+	display_days: bool = True
+	rating_system: RatingSystems = RatingSystems.ten_point
+	private: bool = False
+
 
 
 
 def create_media_item(data: MediaItem) -> int:
-	""" Create a new media item and return it's ID """
+	""" Create a new media item and return its ID """
 	return # need to make collection first
 	with DatabaseSession() as db:
 		db.cursor.execute("""
@@ -57,5 +82,26 @@ def create_media_item(data: MediaItem) -> int:
 				data.link_myanimelist, data.link_imdb, data.link_tmdb, data.adult, data.favourite, data.private
 			]
 		)
+		db.connection.commit()
+		return db.cursor.lastrowid
+
+
+
+
+def create_collection(data: Collection) -> int:
+	""" Create a new collection and return its ID """
+	with DatabaseSession() as db:
+		db.easy_insert('collections', {
+			'user_id': data.user_id,
+			'name': data.name,
+			'display_image': data.display_image,
+			'display_score': data.display_score,
+			'display_progress': data.display_progress,
+			'display_user_started': data.display_user_started,
+			'display_user_finished': data.display_user_finished,
+			'display_days': data.display_days,
+			'rating_system': data.rating_system.value,
+			'private': data.private
+		})
 		db.connection.commit()
 		return db.cursor.lastrowid
