@@ -202,7 +202,10 @@ def create_collection(collection: media.Collection, http_auth: Annotated[HTTPAut
 @app.get("/collection/get/{collection_id}")
 def get_collection(collection_id: int):
 	""" Get info about a collection. """
-	return APIResult("Not implemented yet.")
+	data = media.get_collection_info(collection_id)
+	if data == {}:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+	return APIResult("Fetched collection info successfully.", {'collection': data})
 
 @app.post("/collection/update/{collection_id}")
 def update_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

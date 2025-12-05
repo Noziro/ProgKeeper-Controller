@@ -87,6 +87,16 @@ def create_media_item(data: MediaItem) -> int:
 
 
 
+def get_collection_info(collection_id: int) -> dict:
+	# TODO: add safety check to not return if private == True and request_user_id != collection_user_id
+	with DatabaseSession() as db:
+		rows = db.get_assoc("""
+			SELECT id, user_id, name, display_image, display_score, display_progress, display_user_started, display_user_finished, display_days, rating_system, private
+			FROM collections
+			WHERE id = ?
+		""", [collection_id])
+		return {} if len(rows) == 0 else rows[0]
+	
 
 def create_collection(data: Collection) -> int:
 	""" Create a new collection and return its ID """

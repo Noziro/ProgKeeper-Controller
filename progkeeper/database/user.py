@@ -8,7 +8,6 @@ def get_user_info(user_id: int) -> dict:
 			[user_id]
 		)
 		return {} if len(rows) == 0 else rows[0]
-	return {}
 
 # imports specifically for obliterate_user
 from progkeeper.database.auth import delete_all_sessions_for_user
