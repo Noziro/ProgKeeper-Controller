@@ -202,7 +202,7 @@ def create_collection(collection: media.Collection, http_auth: Annotated[HTTPAut
 @app.get("/collection/get/{collection_id}")
 def get_collection(collection_id: int):
 	""" Get info about a collection. """
-	data = media.get_collection_info(collection_id)
+	data:dict = media.get_collection_info(collection_id)
 	if data == {}:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 	return APIResult("Fetched collection info successfully.", {'collection': data})
@@ -215,4 +215,13 @@ def update_collection(collection_id: int, http_auth: Annotated[HTTPAuthorization
 @app.delete("/collection/delete/{collection_id}")
 def delete_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a collection. """
-	return APIResult("Not implemented yet.")
+	user_id:int = auth.get_user_id_from_session(http_auth.credentials) or 0
+	collection_data = media.get_collection_info(collection_id)
+	if collection_data == {}:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Collection does not exist.')
+	if collection_data['user_id'] != user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	deleted = media.delete_collection(collection_id)
+	if not deleted:
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+	return APIResult("Deleted collection successfully", {'deleted_collection_id': collection_id})

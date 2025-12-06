@@ -1,5 +1,6 @@
 from pydantic import BaseModel
 from enum import Enum
+from typing import Any
 from progkeeper.database.common import DatabaseSession
 
 class RatingSystems(Enum):
@@ -97,6 +98,15 @@ def get_collection_info(collection_id: int) -> dict:
 		""", [collection_id])
 		return {} if len(rows) == 0 else rows[0]
 	
+
+def delete_collection(collection_id: int) -> bool:
+	with DatabaseSession() as db:
+		db.cursor.execute("""
+			DELETE FROM collections WHERE id = ?
+		""", [collection_id])
+		is_successful:bool = True if db.cursor.rowcount == 1 else False
+		db.connection.commit()
+		return is_successful
 
 def create_collection(data: Collection) -> int:
 	""" Create a new collection and return its ID """
