@@ -1,7 +1,7 @@
 from progkeeper.database.common import DatabaseSession
 from typing import Any
 
-def get_user_info(user_id: int) -> dict:
+def get_user_info(user_id: int) -> dict[str, Any]:
 	""" Get information about a user by their ID. Returns an empty dict if not found. """
 	with DatabaseSession() as db:
 		rows = db.get_assoc(

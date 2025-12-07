@@ -88,7 +88,7 @@ def create_media_item(data: MediaItem) -> int:
 
 
 
-def get_collection_info(collection_id: int) -> dict:
+def get_collection_info(collection_id: int) -> dict[str, Any]:
 	# TODO: add safety check to not return if private == True and request_user_id != collection_user_id
 	with DatabaseSession() as db:
 		rows = db.get_assoc("""
@@ -124,4 +124,6 @@ def create_collection(data: Collection) -> int:
 			'private': data.private
 		})
 		db.connection.commit()
+		if not isinstance(db.cursor.lastrowid, int):
+			raise Exception('cursor.lastrowid provided an unexpected value')
 		return db.cursor.lastrowid

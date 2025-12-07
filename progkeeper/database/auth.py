@@ -41,9 +41,11 @@ def refresh_session(session_id: str, user_ip: str) -> bool:
 			"SELECT expiry, user_ip FROM sessions WHERE id = ?",
 			[session_id]
 		)
-		row = db.cursor.fetchone()
+		row:tuple = db.cursor.fetchone()
 		if row is None:
 			return False
+		if not isinstance(row, tuple):
+			raise TypeError('cursor.fetchone() provided an unexpected value type')
 		current_expiry:int = row[0]
 		ip_json:str = row[1]
 		if current_expiry < now_utc():
@@ -58,13 +60,15 @@ def refresh_session(session_id: str, user_ip: str) -> bool:
 			[updated_expiry, updated_ip_json, session_id]
 		)
 		db.connection.commit()
+		if not isinstance(db.cursor.rowcount, int):
+			raise TypeError('cursor.rowcount provided an unexpected value type')
 		if db.cursor.rowcount > 0:
 			return True
 	return False
 
 def generate_session_id() -> str:
 	""" Generate a new session identifier. """
-	session_id = secrets.token_hex(32)
+	session_id:str = secrets.token_hex(32)
 	with DatabaseSession() as db:
 		while session_id_is_in_use(db.cursor, session_id) == True:
 			session_id = secrets.token_hex(32)
@@ -78,18 +82,21 @@ def session_id_is_in_use(cursor, session_id: str) -> bool:
 	)
 	return cursor.fetchone() is not None
 
-def get_user_id_from_session(session_id: str) -> int|None:
-	""" Get the user ID associated with a session ID. Returns None if not found. """
+def get_user_id_from_session(session_id: str) -> int:
+	""" Get the user ID associated with a session ID. Raises a ValueError if not found. """
 	with DatabaseSession() as db:
 		db.cursor.execute(
 			"SELECT user_id FROM sessions WHERE id = ?",
 			[session_id]
 		)
-		row = db.cursor.fetchone()
+		row:tuple = db.cursor.fetchone()
 		if row is None:
-			return None
+			raise ValueError('session not found in database')
+		if not isinstance(row, tuple):
+			raise TypeError('cursor.fetchone() provided an unexpected value type')
+		if not isinstance(row[0], int):
+			raise TypeError('mariadb column "user_id" provided an unexpected value type')
 		return row[0]
-	return None
 
 
 
@@ -97,10 +104,10 @@ def get_user_id_from_session(session_id: str) -> int|None:
 
 def hash_password(password: str) -> str:
 	""" Hash the password for secure storage. """
-	bytes:bytes = password.encode('utf-8')
-	salt = bcrypt.gensalt()
-	hash = bcrypt.hashpw(bytes, salt)
-	return hash
+	password_bytes:bytes = password.encode('utf-8')
+	salt:bytes = bcrypt.gensalt()
+	hash:bytes = bcrypt.hashpw(password_bytes, salt)
+	return hash.decode('utf-8')
 
 def verify_password(plaintext_password: str, hashed_password: str) -> bool:
 	""" Checks a plaintext password against a hashed password. """
@@ -112,18 +119,18 @@ def verify_password(plaintext_password: str, hashed_password: str) -> bool:
 
 def create_user(username: str, password: str, nickname: str | None = None) -> int:
 	""" Create a new user in the database. Returns the new user's ID. """
-	valid_username_chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
+	valid_username_chars:str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 	
 	if len(password) < 6 or len(password) > 72:
 		raise ValueError("Password must be between 6 and 72 characters long.")
-	standardised_name = username.strip().lower()
+	standardised_name:str = username.strip().lower()
 	if len(standardised_name) < 1 or len(standardised_name) > 50:
 		raise ValueError("Username must be between 1 and 50 characters.")
 	for char in standardised_name:
 		if char not in valid_username_chars:
 			raise ValueError("Username contains invalid characters.")
 	
-	hashed_password = hash_password(password)
+	hashed_password:str = hash_password(password)
 	if username != standardised_name and nickname is None:
 		nickname = username
 	nickname = nickname.strip() if nickname != None else None
@@ -141,6 +148,8 @@ def create_user(username: str, password: str, nickname: str | None = None) -> in
 			[standardised_name, hashed_password, nickname]
 		)
 		db.connection.commit()
+		if not isinstance(db.cursor.lastrowid, int):
+			raise TypeError('cursor.lastrowid provided an unexpected value type')
 		return db.cursor.lastrowid
 
 
@@ -155,9 +164,11 @@ def create_session(username: str, password: str, ip_address: str) -> str:
 			"SELECT id, password FROM users WHERE username = ?",
 			[username]
 		)
-		row = db.cursor.fetchone()
+		row:tuple = db.cursor.fetchone()
 		if row is None:
 			raise ValueError("Invalid username.")
+		if not isinstance(row, tuple):
+			raise TypeError('cursor.fetchone() provided an unexpected value type')
 		
 		user_id, hashed_password = row
 		if not verify_password(password, hashed_password):
@@ -188,8 +199,9 @@ def delete_all_sessions_for_user(user_id_or_session: int|str) -> int:
 	""" Delete all sessions for a given user ID. Returns the number of deleted sessions. """
 
 	if isinstance(user_id_or_session, str):
-		user_id:int = get_user_id_from_session(user_id_or_session)
-		if user_id is None:
+		try:
+			user_id:int = get_user_id_from_session(user_id_or_session)
+		except ValueError:
 			return 0
 	elif isinstance(user_id_or_session, int):
 		user_id:int = user_id_or_session
