@@ -1,6 +1,6 @@
 from fastapi import FastAPI, HTTPException, Request, status, Depends, Body
 from pydantic import BaseModel
-from typing import Annotated, Any
+from typing import Annotated, Any, Optional
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import progkeeper.database.auth as auth
@@ -120,21 +120,19 @@ def update_user(new_data: user.Account, http_auth: Annotated[HTTPAuthorizationCr
 		return APIResult('No updates to user performed as all values are identical.', {'user_id': user_id})
 	return APIResult('Updated user successfully.', {'user_id': user_id})
 
-# TODO: finish this admin endpoint for changing other users' data
+# TODO: add an admin endpoint for changing other users' data
 #@app.post("/user/update/{user_id}")
 #def update_user(target_user_id: int, new_data: user.Account, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	
-
 # add extra confirmation step to prevent accidentally querying this endpoint
 class UserDeleteConfirmation(BaseModel):
 	obliterate_this_user: bool
 
-@app.delete("/user/delete/{user_id}")
-def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+@app.delete("/user/delete")
+def delete_user(confirmation: UserDeleteConfirmation, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Permanently delete user. """
 	
-	# TODO: allow admins to delete other users
-	only_allow_self_action(user_id, http_auth)
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
 
 	deleted_data = user.obliterate_user(user_id)
 	if deleted_data == {}:
@@ -143,6 +141,9 @@ def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: A
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Failed to delete user, although some deletions succeeded.", data=deleted_data)
 	return APIResult("Deleted user successfully.", deleted_data)
 
+# TODO: add an admin endpoint for deleting other users'
+#@app.delete("/user/delete/{user_id}")
+#def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 
 @app.post("/user/create", status_code=status.HTTP_201_CREATED)
 def register(user: user.Registration):
@@ -261,6 +262,17 @@ def get_collection(collection_id: int):
 	if data == {}:
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 	return APIResult("Fetched collection info successfully.", {'collection': data})
+
+@app.get("/collection/get/by/user/{user_id}")
+def get_collection_by_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Get all collections belonging to a user. """
+	# TODO: add LIMIT support (pagination)
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
+	target_user = user.get_user_info(user_id)
+	if target_user == {}:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User does not exist.")
+	
+	return APIResult('Fetched collections successfully.', {'collection_set': media.get_collection_info_by_user(user_id)})
 
 @app.post("/collection/update/{collection_id}", description="Updates info about a collection. Please see /collection/create endpoint for valid body fields. Invalid fields will be ignored.")
 def update_collection(collection_id: int, new_data: media.Collection, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

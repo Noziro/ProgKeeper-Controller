@@ -305,3 +305,13 @@ def get_media_info_by_collection(collection_id: int) -> list[dict[str, Any]]:
 			FROM media
 			WHERE collection_id=?
 		""", [collection_id])
+	
+def get_collection_info_by_user(user_id: int) -> list[dict[str, Any]]:
+	# TODO: add safety check to not return if private == True and etc
+	# TODO: add LIMIT support (pagination)
+	with DatabaseSession() as db:
+		return db.get_assoc("""
+			SELECT id, user_id, name, private
+			FROM collections
+			WHERE user_id=?
+		""", [user_id])
