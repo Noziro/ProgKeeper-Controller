@@ -205,7 +205,16 @@ def update_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredential
 @app.delete("/media/delete/{media_id}")
 def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Delete a media item. """
-	return APIResult("Not implemented yet.")
+	user_id:int = auth.get_user_id_from_session(http_auth.credentials) or 0
+	media_data = media.get_media_info(media_id)
+	if media_data == {}:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Media does not exist.')
+	if media_data['user_id'] != user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	deleted = media.delete_media(media_id)
+	if not deleted:
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR)
+	return APIResult("Deleted media successfully", {'deleted_media_id': media_id})
 
 
 

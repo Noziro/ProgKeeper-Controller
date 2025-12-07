@@ -144,6 +144,19 @@ class Collection(BaseModel):
 		# error from an invalid Enum will propogate automatically, no need for a wrapper
 		RatingSystems(value)
 		return value
+	
+
+def common_delete(table:str, id:int) -> bool:
+	""" Common function for deleting from tables that use `id` columns as unique keys.
+	
+	`table` variable is used in a format string and thus MUST ONLY allow internal codebase use. """
+	with DatabaseSession() as db:
+		db.cursor.execute(f"""
+			DELETE FROM {table} WHERE id = ?
+		""", [id])
+		is_successful:bool = True if db.cursor.rowcount == 1 else False
+		db.connection.commit()
+		return is_successful
 
 
 
@@ -193,6 +206,9 @@ def get_media_info(media_id: int) -> dict[str, Any]:
 			WHERE id=?
 		""", [media_id])
 		return {} if len(rows) == 0 else rows[0]
+	
+def delete_media(media_id: int) -> bool:
+	return common_delete('media', media_id)
 
 
 
@@ -208,13 +224,7 @@ def get_collection_info(collection_id: int) -> dict[str, Any]:
 	
 
 def delete_collection(collection_id: int) -> bool:
-	with DatabaseSession() as db:
-		db.cursor.execute("""
-			DELETE FROM collections WHERE id = ?
-		""", [collection_id])
-		is_successful:bool = True if db.cursor.rowcount == 1 else False
-		db.connection.commit()
-		return is_successful
+	return common_delete('collections', collection_id)
 
 def create_collection(data: Collection) -> int:
 	""" Create a new collection and return its ID """
