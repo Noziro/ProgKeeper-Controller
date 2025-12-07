@@ -197,6 +197,26 @@ def create_media_item(data: MediaItem) -> int:
 		db.connection.commit()
 		return media_id
 	
+def update_media(media_id: int, media_data: MediaItem) -> bool:
+	# TODO: consider returning changed fields instead of bool
+
+	with DatabaseSession() as db:
+		# this line is very important! if you do not sure model_dump() with exclude_unset=True
+		# (or an equivalent expression) then you may end up overwriting values that were not requested
+		# to be overwritten!
+		data:dict[str, Any] = media_data.model_dump(exclude_unset=True)
+
+		# prevent any changes to reference columns
+		if 'user_id' in data:
+			del data['user_id']
+		if 'id' in data:
+			del data['id']
+
+		db.easy_update('media', data, ('id', media_id))
+		successful:bool = db.cursor.rowcount > 0
+		db.connection.commit()
+		return successful
+	
 def get_media_info(media_id: int) -> dict[str, Any]:
 	# TODO: add safety check to not return if private == True and request_user_id != media_user_id
 	with DatabaseSession() as db:

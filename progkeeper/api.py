@@ -198,9 +198,21 @@ def get_media(media_id: int):
 	return APIResult("Fetched media info successfully.", {'media': data})
 
 @app.post("/media/update/{media_id}")
-def update_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+def update_media(media_id: int, new_data: media.MediaItem, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a media item. """
-	return APIResult("Not implemented yet.")
+	if len(new_data.model_fields_set) == 0:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Must provide at least 1 change.')
+	
+	old_data = media.get_media_info(media_id)
+	if old_data == {}:
+		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+	if old_data['user_id'] != auth.get_user_id_from_session(http_auth.credentials):
+		return HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	
+	updated = media.update_media(media_id, new_data)
+	if not updated:
+		return APIResult('No updates to media performed as all values are identical.', {'media_id': media_id})
+	return APIResult('Updated media successfully.', {'media_id': media_id})
 
 @app.delete("/media/delete/{media_id}")
 def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
