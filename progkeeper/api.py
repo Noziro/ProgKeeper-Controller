@@ -4,6 +4,8 @@ from typing import Annotated, Any
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import progkeeper.database.auth as auth
+import progkeeper.database.auth as auth
+import progkeeper.database.user as user
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -21,13 +23,6 @@ class APIResult:
 	def __init__(self, detail: str, data: dict = {}):
 		self.detail = detail
 		self.data = data
-
-class UserLogin(BaseModel):
-	username: str
-	password: str
-
-class UserRegister(UserLogin):
-	nickname: str | None = None
 
 
 
@@ -94,7 +89,7 @@ def logout_all(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(securi
 	return APIResult("Deleted all sessions for user.", {"deleted_session_count": deleted_count})
 
 @app.post("/session/create")
-def login(user: UserLogin, request: Request):
+def login(user: user.Login, request: Request):
 	""" Begin a new user session (login). """
 	try:
 		session_id = auth.create_session(user.username, user.password, request.client.host)
@@ -106,8 +101,6 @@ def login(user: UserLogin, request: Request):
 
 # User management
 
-import progkeeper.database.user as user
-
 @app.get("/user/get/{user_id}")
 def get_user(user_id: int):
 	""" Get info about a user. """
@@ -116,11 +109,21 @@ def get_user(user_id: int):
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 	return APIResult("Fetched user info successfully.", {"user": user_data})
 
-@app.post("/user/update/{user_id}")
-def update_user(user_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+@app.post("/user/update")
+def update_user(new_data: user.Account, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update user info. """
+
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
+	updated = user.update_user(user_id, new_data)
+
+	if not updated:
+		return APIResult('No updates to user performed as all values are identical.', {'user_id': user_id})
+	return APIResult('Updated user successfully.', {'user_id': user_id})
+
+# TODO: finish this admin endpoint for changing other users' data
+#@app.post("/user/update/{user_id}")
+#def update_user(target_user_id: int, new_data: user.Account, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	
-	return APIResult("Not implemented yet.")
 
 # add extra confirmation step to prevent accidentally querying this endpoint
 class UserDeleteConfirmation(BaseModel):
@@ -142,7 +145,7 @@ def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: A
 
 
 @app.post("/user/create", status_code=status.HTTP_201_CREATED)
-def register(user: UserRegister):
+def register(user: user.Registration):
 	""" Register a new user. """
 	try:
 		user_id = auth.create_user(user.username, user.password, user.nickname)

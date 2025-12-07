@@ -117,35 +117,22 @@ def verify_password(plaintext_password: str, hashed_password: str) -> bool:
 
 # Worker functions (called directly by API endpoints)
 
-def create_user(username: str, password: str, nickname: str | None = None) -> int:
+def create_user(username: str, unhashed_password: str, nickname: str | None = None) -> int:
 	""" Create a new user in the database. Returns the new user's ID. """
-	valid_username_chars:str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
 	
-	if len(password) < 6 or len(password) > 72:
-		raise ValueError("Password must be between 6 and 72 characters long.")
-	standardised_name:str = username.strip().lower()
-	if len(standardised_name) < 1 or len(standardised_name) > 50:
-		raise ValueError("Username must be between 1 and 50 characters.")
-	for char in standardised_name:
-		if char not in valid_username_chars:
-			raise ValueError("Username contains invalid characters.")
-	
-	hashed_password:str = hash_password(password)
-	if username != standardised_name and nickname is None:
-		nickname = username
-	nickname = nickname.strip() if nickname != None else None
+	hashed_password:str = hash_password(unhashed_password)
 	
 	with DatabaseSession() as db:
 		db.cursor.execute(
 			"SELECT id FROM users WHERE username = ?",
-			[standardised_name]
+			[username]
 		)
 		if db.cursor.fetchone() is not None:
 			raise ValueError("Username already exists.")
 		
 		db.cursor.execute(
 			"INSERT INTO users (username, password, nickname) VALUES (?, ?, ?)",
-			[standardised_name, hashed_password, nickname]
+			[username, hashed_password, nickname]
 		)
 		db.connection.commit()
 		if not isinstance(db.cursor.lastrowid, int):
@@ -154,9 +141,8 @@ def create_user(username: str, password: str, nickname: str | None = None) -> in
 
 
 
-def create_session(username: str, password: str, ip_address: str) -> str:
+def create_session(username: str, unhashed_password: str, ip_address: str) -> str:
 	""" Verify user credentials and return user ID if valid, otherwise 0. """
-	username = username.strip().lower()
 	expiry_utc:int = now_utc() + (60 * 60 * 24 * 14)  # Sessions last 14 days without renewal
 	ip_string:str = json.dumps([ip_address])
 	with DatabaseSession() as db:
@@ -171,7 +157,7 @@ def create_session(username: str, password: str, ip_address: str) -> str:
 			raise TypeError('cursor.fetchone() provided an unexpected value type')
 		
 		user_id, hashed_password = row
-		if not verify_password(password, hashed_password):
+		if not verify_password(unhashed_password, hashed_password):
 			raise ValueError("Invalid password.")
 		
 		session_id:str = generate_session_id()
