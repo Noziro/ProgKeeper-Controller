@@ -141,7 +141,7 @@ def delete_user(user_id: int, confirmation: UserDeleteConfirmation, http_auth: A
 	return APIResult("Deleted user successfully.", deleted_data)
 
 
-@app.post("/user/create")
+@app.post("/user/create", status_code=status.HTTP_201_CREATED)
 def register(user: UserRegister):
 	""" Register a new user. """
 	try:
@@ -150,7 +150,7 @@ def register(user: UserRegister):
 	except ValueError as e:
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create user: {e}")
 
-@app.post("/user/import")
+@app.post("/user/import", status_code=status.HTTP_202_ACCEPTED)
 def import_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Import a variety of data to your user account. """
 	return APIResult("Not implemented yet.")
@@ -166,7 +166,7 @@ def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(secur
 
 import progkeeper.database.media as media
 
-@app.post("/media/create")
+@app.post("/media/create", status_code=status.HTTP_201_CREATED)
 def create_media(media_item: media.MediaItem, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
 	# TODO: validate user_id
@@ -191,7 +191,7 @@ def delete_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredential
 
 # Collection management
 
-@app.post("/collection/create")
+@app.post("/collection/create", status_code=status.HTTP_201_CREATED)
 def create_collection(collection: media.Collection, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a collection. """
 	# Override specified user_id with the currently authenticated user
