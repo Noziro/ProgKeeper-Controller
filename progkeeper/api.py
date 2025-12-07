@@ -185,9 +185,17 @@ def create_media(media_item: media.MediaItem, http_auth: Annotated[HTTPAuthoriza
 	return APIResult('Created media successfully.', {'media_id': media_id})
 
 @app.get("/media/get/by/collection/{collection_id}")
-def get_media_by_collection(collection_id: int):
+def get_media_by_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Get info about a media item. """
-	return APIResult("Not implemented yet.")
+	# TODO: add LIMIT support (pagination)
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
+	collection = media.get_collection_info(collection_id)
+	if collection == {}:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Collection does not exist.")
+	if collection["user_id"] != user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	
+	return APIResult('Fetched collection media items successfully.', {'media_set': media.get_media_info_by_collection(collection_id)})
 
 @app.get("/media/get/{media_id}")
 def get_media(media_id: int):
@@ -205,9 +213,9 @@ def update_media(media_id: int, new_data: media.MediaItem, http_auth: Annotated[
 	
 	old_data = media.get_media_info(media_id)
 	if old_data == {}:
-		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 	if old_data['user_id'] != auth.get_user_id_from_session(http_auth.credentials):
-		return HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 	
 	updated = media.update_media(media_id, new_data)
 	if not updated:
@@ -260,9 +268,9 @@ def update_collection(collection_id: int, new_data: media.Collection, http_auth:
 	
 	old_data = media.get_collection_info(collection_id)
 	if old_data == {}:
-		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
 	if old_data['user_id'] != auth.get_user_id_from_session(http_auth.credentials):
-		return HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
 	
 	updated = media.update_collection(collection_id, new_data)
 	if not updated:

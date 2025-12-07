@@ -160,6 +160,8 @@ def common_delete(table:str, id:int) -> bool:
 
 
 
+# media functions
+
 def create_media_item(data: MediaItem) -> int:
 	""" Create a new media item and return its ID """
 	if 'name' not in data.model_fields_set \
@@ -232,6 +234,8 @@ def delete_media(media_id: int) -> bool:
 
 
 
+# collection functions
+
 def get_collection_info(collection_id: int) -> dict[str, Any]:
 	# TODO: add safety check to not return if private == True and request_user_id != collection_user_id
 	with DatabaseSession() as db:
@@ -287,3 +291,17 @@ def update_collection(collection_id: int, collection_data: Collection) -> bool:
 		successful:bool = db.cursor.rowcount > 0
 		db.connection.commit()
 		return successful
+	
+
+
+# combo functions and searches
+	
+def get_media_info_by_collection(collection_id: int) -> list[dict[str, Any]]:
+	# TODO: add safety check to not return if private == True and request_user_id != media_user_id and request_user_id != collection_user_id
+	# TODO: add LIMIT support (pagination)
+	with DatabaseSession() as db:
+		return db.get_assoc("""
+			SELECT name, user_id, collection_id, status, score, image, description, comments, count_total, count_progress, count_rewatched, user_started_at, user_finished_at, media_started_at, media_finished_at, link_anilist, link_myanimelist, link_imdb, link_tmdb, adult, favourite, private
+			FROM media
+			WHERE collection_id=?
+		""", [collection_id])
