@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request, status, Depends
+from fastapi import FastAPI, HTTPException, Request, status, Depends, Body
 from pydantic import BaseModel
-from typing import Annotated
+from typing import Annotated, Any
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
 import progkeeper.database.auth as auth
@@ -196,7 +196,10 @@ def create_collection(collection: media.Collection, http_auth: Annotated[HTTPAut
 	""" Create a collection. """
 	# Override specified user_id with the currently authenticated user
 	collection.user_id = auth.get_user_id_from_session(http_auth.credentials)
-	collection_id = media.create_collection(collection)
+	try:
+		collection_id = media.create_collection(collection)
+	except ValueError as e:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=e.__str__())
 	return APIResult("Created collection successfully.", {'collection_id': collection_id})
 
 @app.get("/collection/get/{collection_id}")
@@ -207,10 +210,23 @@ def get_collection(collection_id: int):
 		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
 	return APIResult("Fetched collection info successfully.", {'collection': data})
 
-@app.post("/collection/update/{collection_id}")
-def update_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+@app.post("/collection/update/{collection_id}", description="Updates info about a collection. Please see /collection/create endpoint for valid body fields. Invalid fields will be ignored.")
+def update_collection(collection_id: int, new_data: media.Collection, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Update info about a collection. """
-	return APIResult("Not implemented yet.")
+
+	if len(new_data.model_fields_set) == 0:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='Must provide at least 1 change.')
+	
+	old_data = media.get_collection_info(collection_id)
+	if old_data == {}:
+		return HTTPException(status_code=status.HTTP_400_BAD_REQUEST)
+	if old_data['user_id'] != auth.get_user_id_from_session(http_auth.credentials):
+		return HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	
+	updated = media.update_collection(collection_id, new_data)
+	if not updated:
+		return APIResult('No updates to collection performed as all values are identical.', {'collection_id': collection_id})
+	return APIResult('Updated collection successfully.', {'collection_id': collection_id})
 
 @app.delete("/collection/delete/{collection_id}")
 def delete_collection(collection_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

@@ -51,3 +51,18 @@ class DatabaseSession:
 		return self.cursor.execute(f"""
 			INSERT INTO {table} ({','.join(columns)}) VALUES ({','.join(['?' for c in columns])})
 		""", values)
+	
+	def easy_update(self, table:str, column_values:dict[str, typing.Any], conditional:tuple[str, typing.Any]):
+		""" Wrapper for UPDATE statements to reduce dev effort.
+		Just be aware this does use format strings, which in theory opens up injection attacks.
+		Be sure the *table* variable and *column_values* **keys** are only used internally! """
+		columns = [f'{k} = ?' for k in column_values.keys()]
+		if len(columns) == 0:
+			raise ValueError('must provide at least 1 column to update')
+		values = [v for v in column_values.values()]
+		values.append(conditional[1])
+		return self.cursor.execute(f"""
+			UPDATE {table}
+			SET {','.join(columns)}
+			WHERE {conditional[0]} = ?
+		""", values)

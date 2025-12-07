@@ -1,6 +1,6 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from enum import Enum
-from typing import Any
+from typing import Any, Annotated
 from progkeeper.database.common import DatabaseSession
 
 class RatingSystems(Enum):
@@ -49,18 +49,22 @@ class MediaItem(BaseModel):
 class Collection(BaseModel):
 	# TODO: add validation for fields - name should have length and character limits, etc
 	user_id: int | None = None
-	name: str
+	name: str = 'Untitled Collection'
 	display_image: bool = True
 	display_score: bool = True
 	display_progress: bool = True
 	display_user_started: bool = True
 	display_user_finished: bool = True
 	display_days: bool = True
-	rating_system: RatingSystems = RatingSystems.ten_point
+	rating_system: int = RatingSystems.ten_point.value
 	private: bool = False
 
-
-
+	@field_validator("rating_system")
+	@classmethod
+	def validate_rating_system(cls, value):
+		# error from an invalid Enum will propogate automatically, no need for a wrapper
+		RatingSystems(value)
+		return value
 
 def create_media_item(data: MediaItem) -> int:
 	""" Create a new media item and return its ID """
@@ -110,6 +114,8 @@ def delete_collection(collection_id: int) -> bool:
 
 def create_collection(data: Collection) -> int:
 	""" Create a new collection and return its ID """
+	if 'name' not in data.model_fields_set:
+		raise ValueError('collection name must be set')
 	with DatabaseSession() as db:
 		db.easy_insert('collections', {
 			'user_id': data.user_id,
@@ -120,10 +126,30 @@ def create_collection(data: Collection) -> int:
 			'display_user_started': data.display_user_started,
 			'display_user_finished': data.display_user_finished,
 			'display_days': data.display_days,
-			'rating_system': data.rating_system.value,
+			'rating_system': data.rating_system,
 			'private': data.private
 		})
 		db.connection.commit()
 		if not isinstance(db.cursor.lastrowid, int):
 			raise Exception('cursor.lastrowid provided an unexpected value')
 		return db.cursor.lastrowid
+	
+def update_collection(collection_id: int, collection_data: Collection) -> bool:
+	# TODO: consider returning changed fields instead of bool
+
+	with DatabaseSession() as db:
+		# this line is very important! if you do not sure model_dump() with exclude_unset=True
+		# (or an equivalent expression) then you may end up overwriting values that were not requested
+		# to be overwritten!
+		data:dict[str, Any] = collection_data.model_dump(exclude_unset=True)
+
+		# prevent any changes to reference columns
+		if 'user_id' in data:
+			del data['user_id']
+		if 'id' in data:
+			del data['id']
+
+		db.easy_update('collections', data, ('id', collection_id))
+		successful:bool = db.cursor.rowcount > 0
+		db.connection.commit()
+		return successful
