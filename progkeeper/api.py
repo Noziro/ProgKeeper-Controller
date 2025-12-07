@@ -169,8 +169,25 @@ import progkeeper.database.media as media
 @app.post("/media/create", status_code=status.HTTP_201_CREATED)
 def create_media(media_item: media.MediaItem, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
 	""" Create a media item. """
-	# TODO: validate user_id
-	return media.create_media_item(media_item)
+	user_id:int = auth.get_user_id_from_session(http_auth.credentials)
+	media_item.user_id = user_id
+	if 'collection_id' not in media_item.model_fields_set:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='missing required field collection_id')
+	collection_data = media.get_collection_info(media_item.collection_id)
+	if collection_data == {}:
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail='specified collection_id does not exist')
+	if collection_data['user_id'] != user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN)
+	
+	media_id:int = media.create_media_item(media_item)
+	if media_id == 0:
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail='Failed to create media.')
+	return APIResult('Created media successfully.', {'media_id': media_id})
+
+@app.get("/media/get/by/collection/{collection_id}")
+def get_media_by_collection(collection_id: int):
+	""" Get info about a media item. """
+	return APIResult("Not implemented yet.")
 
 @app.get("/media/get/{media_id}")
 def get_media(media_id: int):

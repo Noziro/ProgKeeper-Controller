@@ -2,6 +2,10 @@ from pydantic import BaseModel, field_validator
 from enum import Enum
 from typing import Any, Annotated
 from progkeeper.database.common import DatabaseSession
+from datetime import date
+import re
+
+
 
 class RatingSystems(Enum):
 	three_star = 3
@@ -22,13 +26,13 @@ class MediaTypes(Enum):
 	many = 'many'
 
 class MediaItem(BaseModel):
-	name: str
+	name: str = 'Untitled Media'
+	collection_id: int = 0
+	type: str = MediaTypes.many.value
 	user_id: int | None = None
-	collection_id: int
-	type: MediaTypes
-	status: Status = Status.planned
+	status: str = Status.planned.value
 	score: int | None = None
-	image: str | None = None
+	image: str = ''
 	description: str | None = None
 	comments: str | None = None	
 	count_total: int = 0
@@ -45,6 +49,81 @@ class MediaItem(BaseModel):
 	adult: bool = False
 	favourite: bool = False
 	private: bool = False
+
+	@field_validator("name")
+	@classmethod
+	def validate_name(cls, value):
+		value = value.strip()
+		if len(value) == 0:
+			raise ValueError('name cannot be empty')
+		return value
+
+	@field_validator("score")
+	@classmethod
+	def validate_score(cls, value):
+		if value < 0 or value > 100:
+			raise ValueError('score must be an integer matching or between 0 and 100')
+		return value
+
+	@field_validator("count_total", "count_progress", "count_rewatched")
+	@classmethod
+	def validate_counts(cls, value):
+		if value < 0:
+			raise ValueError('counts must be a positive integer')
+		return value
+
+	@field_validator("user_started_at", "user_finished_at", "media_started_at", "media_finished_at")
+	@classmethod
+	def validate_dates(cls, value):
+		# let date do the error raising
+		date.strptime(value, '%Y-%m-%d')
+		return value
+
+	@field_validator("type")
+	@classmethod
+	def validate_type(cls, value):
+		# let enum do the error raising
+		MediaTypes(value)
+		return value
+
+	@field_validator("status")
+	@classmethod
+	def validate_status(cls, value):
+		# let enum do the error raising
+		Status(value)
+		return value
+
+	@field_validator("comments")
+	@classmethod
+	def validate_comments(cls, value):
+		maxlen:int = pow(2, 16) - 1
+		if len(value) > maxlen:
+			raise ValueError(f'value cannot be longer than {maxlen} characters')
+		return value
+
+	@field_validator("link_anilist", "link_myanimelist")
+	@classmethod
+	def validate_anilist(cls, value):
+		regex:str = r'^(?:anime|manga)\/\d+$'
+		if not re.fullmatch(regex, value, re.IGNORECASE):
+			raise ValueError(f'AniList and MyAnimeList links must match the regular expression: {regex}')
+		return value
+
+	@field_validator("link_imdb")
+	@classmethod
+	def validate_imdb(cls, value):
+		regex:str = r'^tt\d+$'
+		if not re.fullmatch(regex, value, re.IGNORECASE):
+			raise ValueError(f'IMDB links must match the regular expression: {regex}')
+		return value
+
+	@field_validator("link_tmdb")
+	@classmethod
+	def validate_tmdb(cls, value):
+		regex:str = r'^(?:movie|tv)\/\d+$'
+		if not re.fullmatch(regex, value, re.IGNORECASE):
+			raise ValueError(f'TMDB links must match the regular expression: {regex}')
+		return value
 
 class Collection(BaseModel):
 	# TODO: add validation for fields - name should have length and character limits, etc
@@ -66,29 +145,44 @@ class Collection(BaseModel):
 		RatingSystems(value)
 		return value
 
+
+
 def create_media_item(data: MediaItem) -> int:
 	""" Create a new media item and return its ID """
-	return # need to make collection first
+	if 'name' not in data.model_fields_set \
+	or 'collection_id' not in data.model_fields_set:
+		raise ValueError('Media data is missing a required field.')
+	
 	with DatabaseSession() as db:
-		db.cursor.execute("""
-			INSERT INTO media (
-				name, user_id, collection_id, status, score, image, description, comments,
-				count_total, count_progress, count_rewatched, user_started_at,
-				user_finished_at, media_started_at, media_finished_at, link_anilist,
-				link_myanimelist, link_imdb, link_tmdb, adult, favourite, private
-			) VALUES (
-				?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?
-			)
-			""",
-			[
-				data.name, data.user_id, data.collection_id, data.status.value, data.score, data.image, data.description, data.comments,
-				data.count_total, data.count_progress, data.count_rewatched, data.user_started_at,
-				data.user_finished_at, data.media_started_at, data.media_finished_at, data.link_anilist,
-				data.link_myanimelist, data.link_imdb, data.link_tmdb, data.adult, data.favourite, data.private
-			]
-		)
+		db.easy_insert('media', {
+			"name": data.name,
+			"user_id": data.user_id,
+			"collection_id": data.collection_id,
+			"status": data.status,
+			"score": data.score,
+			"image": data.image,
+			"description": data.description,
+			"comments": data.comments,
+			"count_total": data.count_total,
+			"count_progress": data.count_progress,
+			"count_rewatched": data.count_rewatched,
+			"user_started_at": data.user_started_at,
+			"user_finished_at": data.user_finished_at,
+			"media_started_at": data.media_started_at,
+			"media_finished_at": data.media_finished_at,
+			"link_anilist": data.link_anilist,
+			"link_myanimelist": data.link_myanimelist,
+			"link_imdb": data.link_imdb,
+			"link_tmdb": data.link_tmdb,
+			"adult": data.adult,
+			"favourite": data.favourite,
+			"private": data.private
+		})
+		media_id = db.cursor.lastrowid
+		if not isinstance(media_id, int):
+			raise TypeError('cursor.lastrowid provided an unexpected value type')
 		db.connection.commit()
-		return db.cursor.lastrowid
+		return media_id
 
 
 
