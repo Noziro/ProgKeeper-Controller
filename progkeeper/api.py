@@ -2,6 +2,8 @@ from fastapi import FastAPI, HTTPException, Request, status, Depends, Body
 from pydantic import BaseModel
 from typing import Annotated, Any, Optional
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import JSONResponse
+from datetime import datetime
 
 import progkeeper.database.auth as auth
 import progkeeper.database.auth as auth
@@ -159,10 +161,26 @@ def import_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(secur
 	""" Import a variety of data to your user account. """
 	return APIResult("Not implemented yet.")
 
+import progkeeper.database.export as export
+
 @app.get("/user/export")
-def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
-	""" Import a variety of data to your user account. """
-	return APIResult("Not implemented yet.")
+def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]) -> JSONResponse:
+	""" Export all data from your user account. """
+	# TODO: add different export types i.e myanimelist xml
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
+	exported_data = export.as_progkeeper(user_id)
+
+	if exported_data == {}:
+		raise HTTPException(
+			status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+			detail="Failed to export data."
+		)
+
+	print(exported_data)
+	response = JSONResponse(content=exported_data)
+	datestamp = datetime.now().strftime("%Y-%m-%d")
+	response.headers["Content-Disposition"] = f"attachment; filename=progkeeper_export_{datestamp}.json"
+	return response
 
 
 

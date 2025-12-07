@@ -34,11 +34,19 @@ class DatabaseSession:
 		self.connection.close()
 
 	def get_assoc(self, query: str, params: list = []) -> list[dict[str, typing.Any]]:
-		""" Execute a query and return results as a list of associative arrays (dicts). """
+		""" Execute a query and return results as a list of associative arrays (dicts).
+		Additionally converts class values into strings. """
 		self.cursor.execute(query, params)
 		columns:list[str] = [col[0] for col in self.cursor.description if isinstance(col[0], str)] if self.cursor.description else []
 		results:list[dict[str, typing.Any]] = []
 		for row in self.cursor.fetchall():
+			# convert classes into their string representation to prevent
+			# issues with other code. If you need class representation,
+			# use a normal .execute()
+			for i, value in enumerate(row):
+				if hasattr(value, '__class__') and not isinstance(value, (str, int, float, bool, type(None))):
+					row = list(row)
+					row[i] = str(value)
 			results.append({columns[i]: row[i] for i in range(len(columns))})
 		return results
 	
