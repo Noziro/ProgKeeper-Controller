@@ -192,7 +192,10 @@ def get_media_by_collection(collection_id: int):
 @app.get("/media/get/{media_id}")
 def get_media(media_id: int):
 	""" Get info about a media item. """
-	return APIResult("Not implemented yet.")
+	data:dict = media.get_media_info(media_id)
+	if data == {}:
+		raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+	return APIResult("Fetched media info successfully.", {'media': data})
 
 @app.post("/media/update/{media_id}")
 def update_media(media_id: int, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

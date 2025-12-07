@@ -183,6 +183,16 @@ def create_media_item(data: MediaItem) -> int:
 			raise TypeError('cursor.lastrowid provided an unexpected value type')
 		db.connection.commit()
 		return media_id
+	
+def get_media_info(media_id: int) -> dict[str, Any]:
+	# TODO: add safety check to not return if private == True and request_user_id != media_user_id
+	with DatabaseSession() as db:
+		rows = db.get_assoc("""
+			SELECT name, user_id, collection_id, status, score, image, description, comments, count_total, count_progress, count_rewatched, user_started_at, user_finished_at, media_started_at, media_finished_at, link_anilist, link_myanimelist, link_imdb, link_tmdb, adult, favourite, private
+			FROM media
+			WHERE id=?
+		""", [media_id])
+		return {} if len(rows) == 0 else rows[0]
 
 
 
