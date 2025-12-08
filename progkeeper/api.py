@@ -1,6 +1,6 @@
-from fastapi import FastAPI, HTTPException, Request, status, Depends, Body
+from fastapi import FastAPI, HTTPException, Request, status, Depends, UploadFile, BackgroundTasks
 from pydantic import BaseModel
-from typing import Annotated, Any, Optional
+from typing import Annotated
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.responses import JSONResponse
 from datetime import datetime
@@ -8,6 +8,8 @@ from datetime import datetime
 import progkeeper.database.auth as auth
 import progkeeper.database.auth as auth
 import progkeeper.database.user as user
+import progkeeper.database.media as media
+import progkeeper.database.export as export
 
 app = FastAPI(
 	title="ProgKeeper API",
@@ -157,14 +159,31 @@ def register(user: user.Registration):
 		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Failed to create user: {e}")
 
 @app.post("/user/import", status_code=status.HTTP_202_ACCEPTED)
-def import_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
-	""" Import a variety of data to your user account. """
+def import_internal_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Import data that was exported directly from ProgKeeper. """
 	return APIResult("Not implemented yet.")
 
-import progkeeper.database.export as export
+from progkeeper.tasks.myanimelist import handle_file as handle_myanimelist
+@app.post("/user/import/myanimelist", status_code=status.HTTP_202_ACCEPTED)
+async def import_myanimelist_data(file: UploadFile, collection_id: int, tasks: BackgroundTasks, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Import data from MyAnimeList XML. """
+
+	user_id = auth.get_user_id_from_session(http_auth.credentials)
+	collection_data = media.get_collection_info(collection_id)
+	if collection_data['user_id'] != user_id:
+		raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='Specified collection does not belong to you.')
+	
+	tasks.add_task(handle_myanimelist, file, user_id, collection_id)
+
+	return APIResult('Queued job for processing.')
+
+@app.post("/user/import/anilist", status_code=status.HTTP_202_ACCEPTED)
+def import_anilist_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Import data from AniList GDPR files. """
+	return APIResult("Not implemented yet.")
 
 @app.get("/user/export")
-def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]) -> JSONResponse:
+def export_internal_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]) -> JSONResponse:
 	""" Export all data from your user account. """
 	# TODO: add different export types i.e myanimelist xml
 	user_id = auth.get_user_id_from_session(http_auth.credentials)
@@ -176,17 +195,19 @@ def export_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(secur
 			detail="Failed to export data."
 		)
 
-	print(exported_data)
 	response = JSONResponse(content=exported_data)
 	datestamp = datetime.now().strftime("%Y-%m-%d")
 	response.headers["Content-Disposition"] = f"attachment; filename=progkeeper_export_{datestamp}.json"
 	return response
 
+@app.get("/user/export/myanimelist")
+def export_myanimelist_data(http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):
+	""" Export data to MyAnimeList XML. """
+	return APIResult("Not implemented yet.")
+
 
 
 # Media management
-
-import progkeeper.database.media as media
 
 @app.post("/media/create", status_code=status.HTTP_201_CREATED)
 def create_media(media_item: media.MediaItem, http_auth: Annotated[HTTPAuthorizationCredentials, Depends(security_bridge)]):

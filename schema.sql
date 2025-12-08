@@ -3,7 +3,7 @@ SET time_zone = "+00:00";
 
 
 
-CREATE DATABASE IF NOT EXISTS `progkeeper` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE DATABASE IF NOT EXISTS `progkeeper` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_520_ci;
 USE `progkeeper`;
 
 
@@ -19,7 +19,7 @@ CREATE TABLE `users` (
 	`banner_image` tinytext NOT NULL DEFAULT '',
 	`about` text NOT NULL DEFAULT '',
 	`timezone` tinytext NOT NULL DEFAULT 'UTC'
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 
 CREATE TABLE `collections` (
@@ -37,7 +37,7 @@ CREATE TABLE `collections` (
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   INDEX `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 
 CREATE TABLE `media` (
@@ -45,12 +45,12 @@ CREATE TABLE `media` (
   `user_id` int(11) NOT NULL,
   `collection_id` int(11) NOT NULL,
   `type` varchar(50) NOT NULL,
-  `status` tinytext NOT NULL DEFAULT 'planned',
+  `status` tinytext NOT NULL,
   `name` tinytext NOT NULL,
-  `description` text NOT NULL DEFAULT '',
-  `image` tinytext NOT NULL DEFAULT '',
+  `description` text DEFAULT NULL,
+  `image` tinytext DEFAULT NULL,
   `score` int(3) DEFAULT NULL,
-  `comments` text NOT NULL DEFAULT '',
+  `comments` text DEFAULT NULL,
   `count_total` smallint(6) DEFAULT 0,
   `count_progress` smallint(6) NOT NULL DEFAULT 0,
   `count_rewatched` smallint(6) NOT NULL DEFAULT 0,
@@ -70,7 +70,7 @@ CREATE TABLE `media` (
   FOREIGN KEY (`collection_id`) REFERENCES `collections`(`id`),
   INDEX `user_id` (`user_id`),
   INDEX `collection_id` (`collection_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 
 CREATE TABLE `activity` (
@@ -81,20 +81,7 @@ CREATE TABLE `activity` (
   `updated_at` timestamp NOT NULL DEFAULT current_timestamp(),
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   INDEX `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
-
-
-CREATE TABLE `jobs` (
-  `id` int(11) PRIMARY KEY AUTO_INCREMENT,
-  `user_id` int(11),
-  `type` text NOT NULL,
-  `progress` int(2) NOT NULL DEFAULT 0,
-  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
-  `started_at` timestamp DEFAULT NULL,
-  `completed_at` timestamp DEFAULT NULL,
-  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
-  INDEX `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;
 
 
 CREATE TABLE `sessions` (
@@ -105,4 +92,4 @@ CREATE TABLE `sessions` (
   `user_ip` json NOT NULL,
   FOREIGN KEY (`user_id`) REFERENCES `users`(`id`),
   INDEX `user_id` (`user_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_520_ci;

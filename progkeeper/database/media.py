@@ -32,9 +32,9 @@ class MediaItem(BaseModel):
 	user_id: int | None = None
 	status: str = Status.planned.value
 	score: int | None = None
-	image: str = ''
+	image: str | None = None
 	description: str | None = None
-	comments: str | None = None	
+	comments: str | None = None
 	count_total: int = 0
 	count_progress: int = 0
 	count_rewatched: int = 0
@@ -76,6 +76,8 @@ class MediaItem(BaseModel):
 	@classmethod
 	def validate_dates(cls, value):
 		# let date do the error raising
+		if value == None:
+			return None
 		date.strptime(value, '%Y-%m-%d')
 		return value
 
@@ -174,6 +176,7 @@ def create_media_item(data: MediaItem) -> int:
 			"user_id": data.user_id,
 			"collection_id": data.collection_id,
 			"status": data.status,
+			"type": data.type,
 			"score": data.score,
 			"image": data.image,
 			"description": data.description,

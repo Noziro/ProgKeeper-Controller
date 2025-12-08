@@ -3,3 +3,4 @@ uvicorn[standard]
 mariadb
 pydantic
 bcrypt
+python-multipart
