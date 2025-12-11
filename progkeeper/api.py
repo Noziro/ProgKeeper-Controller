@@ -105,6 +105,12 @@ def login(user: user.Login, request: Request):
 
 # User management
 
+@app.get("/user/get/new_users")
+def get_new_users(quantity: int = 10):
+	""" Get the most recently signed up users. """
+	data:list = user.get_new_users(quantity)
+	return APIResult("Fetched user info successfully.", {"user_set": data})
+
 @app.get("/user/get/{user_id}")
 def get_user(user_id: int):
 	""" Get info about a user. """

@@ -75,10 +75,18 @@ def get_user_info(user_id: int) -> dict[str, Any]:
 	""" Get information about a user by their ID. Returns an empty dict if not found. """
 	with DatabaseSession() as db:
 		rows = db.get_assoc(
-			"SELECT id, username, nickname, profile_image, banner_image, about, timezone FROM users WHERE id = ?",
+			"SELECT id, username, nickname, about, timezone FROM users WHERE id = ?",
 			[user_id]
 		)
 		return {} if len(rows) == 0 else rows[0]
+
+def get_new_users(quantity: int) -> list[dict[str, Any]]:
+	with DatabaseSession() as db:
+		rows = db.get_assoc(
+			"SELECT id, username, nickname FROM users ORDER BY created_at DESC LIMIT ?",
+			[quantity]
+		)
+		return [] if len(rows) == 0 else rows
 
 # imports specifically for obliterate_user
 from progkeeper.database.auth import delete_all_sessions_for_user
